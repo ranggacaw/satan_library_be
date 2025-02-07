@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 const dotenv = require('dotenv');
+const admin = require('firebase-admin');
 
 // Load environment variables
 dotenv.config();
@@ -14,6 +15,14 @@ const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Initialize Firebase
+const serviceAccount = require('./serviceAccountKey.json');
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+})
+const db = admin.firestore();
+
 
 // Import routes (ensure these files exist and export a valid router)
 const authRoutes = require('./routes/auth');

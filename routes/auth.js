@@ -8,41 +8,75 @@ const prisma = new PrismaClient();
 const SECRET_KEY = 'yoursecretkey';
 
 // Register
-router.post('/register', async (req, res) => {
-    const { email, name, password } = req.body;
-
+router.post("/register", async (req, res) => {
     try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const user = await prisma.user.create({
-            data: { email, name, password: hashedPassword },
+        const { uid, email, name, password } = req.body;
+
+        console.log("Received data:", { uid, email, name, password }); // Debugging
+
+        // Check if user already exists
+        const existingUser = await prisma.user.findUnique({
+            where: { firebaseUid: uid },
         });
 
-        res.json({ message: 'User registered successfully', user });
+        if (existingUser) {
+            return res.status(400).json({ message: "User already exists" });
+        }
+
+        // Hash the password before saving
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+        // Save user to database
+        const newUser = await prisma.user.create({
+            data: {
+                firebaseUid: uid,
+                email,
+                name,
+                password: hashedPassword, // Store hashed password
+            },
+        });
+
+        console.log("Saved user:", newUser);
+
+        res.status(201).json({ message: "User registered successfully", user: newUser });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to register user' });
+        console.error("Database error:", error);
+        res.status(500).json({ message: "Internal server error", error: error.message });
     }
 });
 
-// Login
-router.post('/login', async (req, res) => {
-    const { email, password } = req.body;
 
+// Login
+router.post("/login", async (req, res) => {
     try {
-        const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            return res.status(401).json({ error: 'Invalid credentials' });
+        const { email, password } = req.body;
+
+        // Find user by email
+        const user = await prisma.user.findUnique({
+            where: { email },
+        });
+
+        if (!user) {
+            return res.status(400).json({ message: "Invalid email or password" });
+        }
+
+        // Compare provided password with stored hashed password
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: "Invalid email or password" });
         }
 
         const token = jwt.sign({ userId: user.id }, SECRET_KEY, { expiresIn: '1h' });
         res.status(200).json({ 
             token, 
             user_id: user.id, 
-            name: user.name,
             status: true,
-            message: 'Login successful',
+            message: 'Login successful', user
         });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to login' });
+        console.error("Login error:", error);
+        res.status(500).json({ message: "Internal server error" });
     }
 });
 

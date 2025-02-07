@@ -14,18 +14,22 @@ datasource db {
 }
 
 model User {
-  id       Int    @id @default(autoincrement())
-  email    String @unique
-  name     String
-  password String
-  books    Book[]  // Relasi balik ke model Book
+  id          Int     @id @default(autoincrement())
+  firebaseUid String  @unique @db.VarChar(255) // Increase size
+  email       String  @unique
+  name        String
+  password    String?
+  books       Book[]  // Relationship with Book
 }
 
 model Book {
   id      Int     @id @default(autoincrement())
   title   String
   content String
+  firestoreId String? // Store the Firestore document ID
   userId  Int
-  user      User     @relation(fields: [userId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
 }
+
+
